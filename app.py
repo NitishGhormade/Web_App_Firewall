@@ -5,33 +5,38 @@ app = Flask(__name__)
 
 def Check_SQLi(query):
     SQLi_patterns = [
-        "'", "%27",  # single quote
-        '"', "%22",   # double quote
-        "--", "%2D%2D",  # comment
-        "#", "%23",   # comment
-        ";", "%3B",  # semicolon
-        " ", "%20",  # space
-        "exec", "%65%78%65%63",  # exec keyword (basic encoding)
-        "select", "%73%65%6c%65%63%74",  # select keyword (basic encoding)
-        "from", "%66%72%6f%6d",  # from keyword (basic encoding)
-        "where", "%77%68%65%72%65",  # where keyword (basic encoding)
-        "and", "%61%6e%64",  # and keyword (basic encoding)
-        "or", "%6f%72",  # or keyword (basic encoding)
-        "not", "%6e%6f%74",  # not keyword (basic encoding)
-        "in", "%69%6e",  # in keyword (basic encoding)
-        "union", "%75%6e%69%6f%6e",  # union keyword (basic encoding)
+        "'", '"', "--", "#", ";", " ", "exec", "select", "from", "where", "and", "or", "not", "in", "union"
     ]
-    for i in SQLi_patterns:
-        if i in query.lower():
+    for sql in SQLi_patterns:
+        if sql in query.lower():
+            return True
+        elif quote(sql) in query.lower():
+            return True
+    return False
+
+def Check_XSS(query):
+    if not query:
+        return False
+    xss_tags = [
+        "<script", "<img", "<iframe", "<svg", "<object", "<embed", "<link", "<style"
+    ]
+    for tag in xss_tags:
+        if tag in query.lower():
+            return True
+        elif quote(tag) in query.lower():
             return True
     return False
 
 @app.before_request
 def waf():
-    raw_query = request.query_string.decode() # raw_query: 1%27
-    encoded_query = unquote(raw_query) # encoded_query: 1'
-    if Check_SQLi(raw_query) or Check_SQLi(encoded_query):
+    encoded_query_string = request.query_string.decode() # Byte String Converted into a String using decode() :- b'1%27' => 1%27
+    decoded_query_string = unquote(encoded_query_string) # decoded_query_string: 1'
+
+    if Check_SQLi(decoded_query_string): # DO Changes in SQLi
         abort(403)
+    if Check_XSS(decoded_query_string):
+        abort(403)
+
 
 @app.route('/')
 def home():
@@ -40,8 +45,6 @@ def home():
 @app.route('/search')
 def search():
     query = request.args.get('q')
-    if Check_SQLi(query):
-        abort(403)
     return f"You searched for: {query}"
 
 @app.route('/<path:any_path>')
