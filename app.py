@@ -37,6 +37,13 @@ def waf():
 def home():
     return "Hello, this is your web app!"
 
+@app.route('/search')
+def search():
+    query = request.args.get('q')
+    if Check_SQLi(query):
+        abort(403)
+    return f"You searched for: {query}"
+
 @app.route('/<path:any_path>')
 def all_paths(any_path):
     return f"You visited: /{any_path}"
