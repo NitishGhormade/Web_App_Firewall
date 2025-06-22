@@ -57,11 +57,31 @@ def Check_XSS(query):
                     return True
     return False
 
+def Check_Header_Injection():
+    suspicious_headers = [
+        "X-Real-IP",
+        "X-Client-IP",
+        "X-Forwarded",
+        "X-Remote-Addr",
+        "X-Forwarded-For",
+        "X-Forwarded-Host",
+        "X-Forwarded-Server",
+        "X-Forwarded-Port",
+        "X-Forwarded-Proto",
+        "X-Forwarded-Prefix",
+    ]
+    for header in suspicious_headers:
+        if header in request.headers:
+            return True
+    return False
+
 @app.before_request
 def waf():
     encoded_query_string = request.query_string.decode() # Byte String Converted into a String using decode() :- b'1%27' => 1%27
     decoded_query_string = unquote(encoded_query_string) # decoded_query_string: 1'
 
+    if Check_Header_Injection():
+        abort(403)
     if Check_SQLi(decoded_query_string): # DO Changes in SQLi
         abort(403)
     if Check_XSS(decoded_query_string):
