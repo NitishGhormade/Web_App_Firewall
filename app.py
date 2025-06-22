@@ -1,7 +1,11 @@
-from flask import Flask, request, abort
+from flask import Flask, request, abort, g
 from urllib.parse import unquote, quote
+import html
 
 app = Flask(__name__)
+
+def html_encode(s):
+    return html.escape(s)
 
 def Check_SQLi(query):
     if not query:
@@ -20,7 +24,7 @@ def Check_XSS(query):
     if not query:
         return False
     xss_tags = [
-        "<script", "<iframe", "<svg", "<object", "<embed", "<link", "<style", "javascript"
+        "<script", "<iframe", "<svg", "<object", "<embed", "<link", "<style", "javascript", "alert", "confirm", "prompt"
     ]
     # Blocked tags above; now handle specific attributes for other tags
     dangerous_tag_attrs = {
@@ -66,16 +70,18 @@ def waf():
 
 @app.route('/')
 def home():
-    return "Hello, this is your web app!"
+    return html_encode("Hello, this is your web app!")
 
 @app.route('/search')
 def search():
     query = request.args.get('q')
-    return f"You searched for: {query}"
+    escaped_query = html_encode(query)
+    return f"You searched for: {escaped_query}"
 
 @app.route('/<path:any_path>')
 def all_paths(any_path):
-    return f"You visited: /{any_path}"
+    escaped_path = html_encode(any_path)
+    return f"You visited: /{escaped_path}"
 
 if __name__ == '__main__':
     app.run(debug=True)
