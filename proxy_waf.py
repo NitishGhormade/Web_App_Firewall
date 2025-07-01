@@ -80,20 +80,35 @@ def Check_Header_Injection(headers):
 
 BACKEND = "http://localhost:5000"  # Change to your backend app
 
+def log_request(action, method, path, headers, reason=None, body=None):
+    with open('log.txt', 'a', encoding='utf-8') as f:
+        entry = f"{action} {method} {path} | Headers: {headers}"
+        if body is not None:
+            entry += f" | Body: {body[:500]}"
+        if reason is not None:
+            entry += f" | Reason: {reason}"
+        entry += "\n"
+        f.write(entry)
+
 class ProxyWAFHandler(BaseHTTPRequestHandler):
     def do_GET(self): # Runs when the request is a GET request
         # Parse and check query string
         parsed = urlparse(self.path)
         decoded_query = unquote(parsed.query)
-        if Check_Header_Injection(self.headers) or Check_SQLi(decoded_query) or Check_XSS(decoded_query):
+        reason = None
+        if Check_Header_Injection(self.headers):
+            reason = 'Header Injection'
+        elif Check_SQLi(decoded_query):
+            reason = 'SQL Injection'
+        elif Check_XSS(decoded_query):
+            reason = 'XSS'
+        if reason:
+            log_request('REJECTED', 'GET', self.path, dict(self.headers), reason=reason)
             self.send_response(403)
             self.end_headers()
             self.wfile.write(b"Forbidden by WAF")
             return
-
-        # Log the allowed request using file module
-        with open('log.txt', 'a', encoding='utf-8') as f:
-            f.write(f"ALLOWED GET {self.path} | Headers: {dict(self.headers)}\n")
+        log_request('ALLOWED', 'GET', self.path, dict(self.headers))
         # Forward request to backend
         url = BACKEND + self.path
         resp = requests.get(url, headers=self.headers)
@@ -109,15 +124,20 @@ class ProxyWAFHandler(BaseHTTPRequestHandler):
         post_data = self.rfile.read(content_length)
         parsed = urlparse(self.path)
         decoded_query = unquote(parsed.query)
-        if Check_Header_Injection(self.headers) or Check_SQLi(decoded_query) or Check_XSS(decoded_query):
+        reason = None
+        if Check_Header_Injection(self.headers):
+            reason = 'Header Injection'
+        elif Check_SQLi(decoded_query):
+            reason = 'SQL Injection'
+        elif Check_XSS(decoded_query):
+            reason = 'XSS'
+        if reason:
+            log_request('REJECTED', 'POST', self.path, dict(self.headers), reason=reason, body=post_data)
             self.send_response(403)
             self.end_headers()
             self.wfile.write(b"Forbidden by WAF")
             return
-
-        # Log the allowed request using file module
-        with open('log.txt', 'a', encoding='utf-8') as f:
-            f.write(f"ALLOWED POST {self.path} | Headers: {dict(self.headers)} | Body: {post_data[:500]}\n")
+        log_request('ALLOWED', 'POST', self.path, dict(self.headers), body=post_data)
         url = BACKEND + self.path
         resp = requests.post(url, headers=self.headers, data=post_data)
         self.send_response(resp.status_code)
