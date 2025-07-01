@@ -46,13 +46,11 @@ def home():
     return "Welcome to the protected backend app!"
 
 @app.route('/search')
-@jwt_required
 def search():
     q = request.args.get('q', '')
     return f"You searched for: {escape(q)}"
 
 @app.route('/echo', methods=['POST'])
-@jwt_required
 def echo():
     data = request.get_data(as_text=True)
     return f"Echo: {data}"

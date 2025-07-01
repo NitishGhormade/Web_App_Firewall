@@ -91,6 +91,9 @@ class ProxyWAFHandler(BaseHTTPRequestHandler):
             self.wfile.write(b"Forbidden by WAF")
             return
 
+        # Log the allowed request using file module
+        with open('log.txt', 'a', encoding='utf-8') as f:
+            f.write(f"ALLOWED GET {self.path} | Headers: {dict(self.headers)}\n")
         # Forward request to backend
         url = BACKEND + self.path
         resp = requests.get(url, headers=self.headers)
@@ -112,6 +115,9 @@ class ProxyWAFHandler(BaseHTTPRequestHandler):
             self.wfile.write(b"Forbidden by WAF")
             return
 
+        # Log the allowed request using file module
+        with open('log.txt', 'a', encoding='utf-8') as f:
+            f.write(f"ALLOWED POST {self.path} | Headers: {dict(self.headers)} | Body: {post_data[:500]}\n")
         url = BACKEND + self.path
         resp = requests.post(url, headers=self.headers, data=post_data)
         self.send_response(resp.status_code)
