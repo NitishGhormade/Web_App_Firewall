@@ -58,6 +58,22 @@ def Check_XSS(query):
                     return True
     return False
 
+def Check_SSTI(query):
+    if not query:
+        return False
+    ssti_patterns = [
+        "{{", "}}", "{%", "%}", "${", "<%", "%>",
+        "__class__", "mro", "self", "request", "config", "os", "cycler", "joiner", "lipsum", "url_for",
+        "import os", "import sys", "subprocess", "popen", "eval", "exec", "attr", "globals", "locals"
+    ]
+    lower_query = query.lower()
+    for pattern in ssti_patterns:
+        if pattern in lower_query:
+            return True
+        elif requests.utils.quote(pattern) in lower_query:
+            return True
+    return False
+
 def Check_Header_Injection(headers):
     suspicious_headers = [
         "X-Real-IP",
@@ -102,6 +118,8 @@ class ProxyWAFHandler(BaseHTTPRequestHandler):
             reason = 'SQL Injection'
         elif Check_XSS(decoded_query):
             reason = 'XSS'
+        elif Check_SSTI(decoded_query):
+            reason = 'SSTI'
         if reason:
             log_request('REJECTED', 'GET', self.path, dict(self.headers), reason=reason)
             self.send_response(403)
@@ -131,6 +149,8 @@ class ProxyWAFHandler(BaseHTTPRequestHandler):
             reason = 'SQL Injection'
         elif Check_XSS(decoded_query):
             reason = 'XSS'
+        elif Check_SSTI(decoded_query):
+            reason = 'SSTI'
         if reason:
             log_request('REJECTED', 'POST', self.path, dict(self.headers), reason=reason, body=post_data)
             self.send_response(403)
